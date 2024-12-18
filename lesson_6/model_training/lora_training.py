@@ -18,8 +18,8 @@ def run_and_plot_training():
         "--learning-rate", "0.0001"
     ]
 
-    train_loss_pattern = re.compile(r"Iter (\d+): Train loss ([0-9.]+)")  # Для лосса обучения
-    val_loss_pattern = re.compile(r"Iter (\d+): Val loss ([0-9.]+)")    # Для лосса валидации
+    train_loss_pattern = re.compile(r"Iter (\d+): Train loss ([0-9.]+)")
+    val_loss_pattern = re.compile(r"Iter (\d+): Val loss ([0-9.]+)")
 
     train_losses = []
     val_losses = []
@@ -35,9 +35,9 @@ def run_and_plot_training():
         )
 
         for line in process.stdout:
-            print(line.strip())  # Печатаем вывод в терминал
+            print(line.strip())
 
-            # Извлечение лосса обучения
+            # Витягуємо трейн-лосси з терміналу
             train_match = train_loss_pattern.search(line)
             if train_match:
                 iter_num = int(train_match.group(1))
@@ -45,7 +45,7 @@ def run_and_plot_training():
                 iterations.append(iter_num)
                 train_losses.append(train_loss)
 
-            # Извлечение лосса валидации
+            # Витягуємо валідаційні лосси з терміналу
             val_match = val_loss_pattern.search(line)
             if val_match:
                 iter_num = int(val_match.group(1))
@@ -65,14 +65,11 @@ def run_and_plot_training():
         print(f"An unexpected error occurred: {e}")
         return
 
-    # Построение графика лосса
     plt.figure(figsize=(10, 6))
 
-    # График лосса обучения
     if train_losses:
         plt.plot(iterations, train_losses, label="Train Loss", marker='o')
 
-    # График лосса валидации
     if val_losses:
         plt.plot(val_iterations, val_losses, label="Validation Loss", marker='x')
 
@@ -82,12 +79,10 @@ def run_and_plot_training():
     plt.legend()
     plt.grid(True)
 
-    # Сохраняем график в файл
     plot_file = "training_loss_plot.png"
     plt.savefig(plot_file)
     print(f"Loss plot saved as {plot_file}")
     plt.show()
 
-# Вызов функции
 if __name__ == "__main__":
     run_and_plot_training()
