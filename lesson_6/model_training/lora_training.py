@@ -5,17 +5,17 @@ import matplotlib.pyplot as plt
 def run_and_plot_training():
     command = [
         "mlx_lm.lora",
-        "--model", "models/llama3.1",
-        "--data", "data",
-        "--train",
-        "--batch-size", "1",
-        "--iters", "600",
-        "--steps-per-report", "1",
-        "--adapter-path", "adapters",
-        "--max-seq-length", "5098",
-        "--steps-per-eval", "5",
-        "--grad-checkpoint",
-        "--learning-rate", "0.0001"
+        "--model", "models/llama3.1", # шлях до моделі
+        "--data", "data", # шлях до файлів train.jsonl, valid.jsonl
+        "--train", # переведення моделі у стан тренування. Тип тренування за змовчуванням - lora, r=16
+        "--batch-size", "1", # розмір батчу. Більший не влазить
+        "--iters", "600", # кількість ітерацій
+        "--steps-per-report", "1", # виведення лоссу на кожній ітерації
+        "--adapter-path", "adapters", # шлях до папки з адаптерами
+        "--max-seq-length", "5098", # максимальна довжина послідовності
+        "--steps-per-eval", "5", # кількість кроків між валідаціями
+        "--grad-checkpoint", # перерахування градієнтів при backpropagation, економить памʼять ціною подвійного розрахунку
+        "--learning-rate", "0.0001" # оптимізатор Adam, на жаль, без наворотів
     ]
 
     train_loss_pattern = re.compile(r"Iter (\d+): Train loss ([0-9.]+)")
