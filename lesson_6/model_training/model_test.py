@@ -3,7 +3,7 @@ import ollama
 
 
 def classify_chunk(chunk: str):
-    """Отправляет запрос в модель 'chunker' для классификации."""
+    """Направляємо запити в модель для валідації."""
     response = ollama.chat(
         model="llama",
         messages=[{
@@ -67,10 +67,9 @@ def classify_chunk(chunk: str):
 
 
 def extract_ground_truth(assistant_message):
-    """Извлекает эталонные значения рейтингов из assistant_message."""
+    """Витягуємо еталонні рейтинги з assistant_message."""
     try:
         arguments = assistant_message["tool_calls"][0]["function"]["arguments"]
-        # Если значение в arguments — строка, преобразуем её в Python-объект
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
         return arguments["ratings"]
@@ -80,11 +79,10 @@ def extract_ground_truth(assistant_message):
 
 
 def compare_ratings(predicted, ground_truth, threshold=0.4):
-    """Сравнивает предсказанные и эталонные рейтинги, воспринимая 0 как -1."""
+    """Порівнюємо вивід моделі з еталоном. Для того щоб оштрафувати нульові аутпути, сприймаємо 0 як -1."""
     correct = 0
     total = len(ground_truth)
 
-    # Преобразуем значения 0 в -1 для обоих наборов данных
     adjusted_predicted = {key: (-1 if value == 0 else value) for key, value in predicted.items()}
     adjusted_ground_truth = {key: (-1 if value == 0 else value) for key, value in ground_truth.items()}
 
@@ -95,7 +93,6 @@ def compare_ratings(predicted, ground_truth, threshold=0.4):
 
 
 def process_test_data(test_jsonl_path):
-    """Сравнивает предсказания модели с эталонными значениями."""
     with open(test_jsonl_path, 'r', encoding='utf-8') as f:
         data = [json.loads(line.strip()) for line in f]
 
@@ -108,16 +105,13 @@ def process_test_data(test_jsonl_path):
         user_message = next(msg for msg in messages if msg["role"] == "user")["content"]
         assistant_message = next(msg for msg in messages if msg["role"] == "assistant")
 
-        # Извлекаем эталонные рейтинги
         ground_truth = extract_ground_truth(assistant_message)
         if not ground_truth:
             print(f"Skipping chunk {i + 1}: Unable to extract ground truth.")
             continue
 
-        # Извлекаем текстовый фрагмент (chunk) из сообщения пользователя
         chunk = user_message.split("Chunk:")[-1].strip()
 
-        # Получаем предсказание от модели
         print(f"Processing chunk {i + 1}...")
         predicted = classify_chunk(chunk)
 
@@ -150,7 +144,7 @@ def process_test_data(test_jsonl_path):
 
 
 def print_results(results, accuracy):
-    """Выводит результаты сравнения и точность."""
+    """Виведення чанків і оцінка точності"""
     for result in results:
         print(f"Chunk Index: {result['chunk_index']}")
         #print(f"Chunk: {result['chunk']}")
@@ -164,7 +158,6 @@ def print_results(results, accuracy):
     print(f"Overall Accuracy: {accuracy:.2f}%")
 
 
-# Основной вызов
 if __name__ == "__main__":
     test_jsonl_path = "../data/test.jsonl"
     results, accuracy = process_test_data(test_jsonl_path)
