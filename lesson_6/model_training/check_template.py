@@ -19,7 +19,6 @@ model = AutoModelForCausalLM.from_pretrained(model_id,
 
 item = data[0]
 
-# Извлекаем нужные поля
 chunk = item.get("chunk")
 ratings = item.get("validation")
 
@@ -73,7 +72,6 @@ tokenized_chat.to(model.device)
 
 out = model.generate(**tokenized_chat, max_new_tokens=128)
 
-# print(out)
 generated_text = out[0, tokenized_chat['input_ids'].shape[0]:]
 
 print(tokenizer.decode(generated_text))
