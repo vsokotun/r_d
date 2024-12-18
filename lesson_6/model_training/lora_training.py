@@ -11,7 +11,7 @@ def run_and_plot_training():
         "--batch-size", "1",
         "--iters", "600",
         "--steps-per-report", "1",
-        "--adapter-path", "models/adapter",
+        "--adapter-path", "adapters",
         "--max-seq-length", "5098",
         "--steps-per-eval", "5",
         "--grad-checkpoint",
