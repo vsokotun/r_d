@@ -71,10 +71,8 @@ for item in data:
             "validation": validation_result
         }
 
-        # Обновление файла после обработки каждого элемента
         with open("validated_ratings.json", "w", encoding="utf-8") as output_file:
             json.dump(result, output_file, indent=4, ensure_ascii=False)
 
-        # Обновление исходного файла
         with open("output_data.json", "w", encoding="utf-8") as input_file:
             json.dump(data, input_file, indent=4, ensure_ascii=False)
