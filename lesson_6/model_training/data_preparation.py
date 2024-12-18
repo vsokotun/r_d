@@ -13,7 +13,6 @@ with open(json_file, 'r', encoding='utf-8') as f:
 
 tokenizer = AutoTokenizer.from_pretrained(model_id, padding_side="left")
 
-# Инструкции и описание функции
 hard_instructions = """You are a document analyzer. Classify the following chunk of text into the following classes with a rating for each class:
 - specification: Contains technical specifications from the manufacturer.
 - tires: Contains information about the tires on and in the car.
@@ -44,8 +43,7 @@ tool_description = {
     }
 }
 
-# Делим данные на train и test
-split_index = int(0.8 * len(data))  # 80% для train
+split_index = int(0.8 * len(data))
 split_index_2 = split_index + (len(data) - split_index) // 2
 train_data = data[:split_index]
 test_data = data[split_index:split_index_2]
