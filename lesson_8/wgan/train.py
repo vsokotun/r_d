@@ -11,7 +11,7 @@ from torch.optim import Adam
 
 from models import Generator, Discriminator
 
-# Гиперпараметры
+# Гіперпараметри
 latent_dim = 100
 batch_size = 1024
 initial_lr = 0.0002
@@ -21,21 +21,20 @@ n_critic = 3
 lambda_gp = 10
 num_epochs = 200
 
-# Создаем директории для сохранения результатов
+# Папки для збереження результатів
 os.makedirs("results/images", exist_ok=True)
 os.makedirs("results/checkpoints", exist_ok=True)
 
-# Путь к чекпоинту для загрузки (None, если начинаем с нуля)
-checkpoint_path = ''  # Укажите путь здесь, если хотите загрузить чекпоинт
+# Чекпойнт, з якого продовжуємо навчання
+checkpoint_path = ''  # наразі без чекпойнту
 
-# Определяем устройство и тип данных
+# Пристрій та тип даних
 device = torch.device("mps" if torch.mps.is_available() else "cpu")
-dtype = torch.float32  # Явно указываем float32
+dtype = torch.float32  # Я пробував перевести в fp16, щось перевів, щось ні, воно тут не обовʼязкове
 
-# Загрузка данных
 data = torch.load("processed_data.pt")
 if data.dtype == torch.float16:
-    # Преобразуем данные в float32
+    # Сам датасет також мав бути fp16
     data = data.float()
     print("Converting data to FP32 precision")
 print(f"Using {data.dtype} precision")
@@ -46,7 +45,6 @@ dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_worker
 generator = Generator(latent_dim=latent_dim).to(device).to(dtype)
 discriminator = Discriminator().to(device).to(dtype)
 
-# Оптимизаторы
 g_optimizer = Adam(
     generator.parameters(), 
     lr=initial_lr, 
@@ -61,7 +59,7 @@ d_optimizer = Adam(
     weight_decay=1e-5
 )
 
-# Warmup scheduler
+# Тут я намагаюсь спершу застосувати "розігрівочний" scheduler, а далі вже реальний
 warmup_epochs = 8
 g_warmup = LinearLR(
     g_optimizer, 
@@ -77,9 +75,9 @@ d_warmup = LinearLR(
     total_iters=warmup_epochs
 )
 
-# Основной scheduler с периодическим перезапуском
-T_0 = 50  # Длина первого цикла
-T_mult = 2  # Каждый следующий цикл длиннее в 2 раза
+# Основний scheduler зі скидом циклу, якщо lr зайде в мінімум
+T_0 = 50  # перший цикл
+T_mult = 2  # Наступні цикли в 2 рази довші
 g_scheduler = CosineAnnealingWarmRestarts(
     g_optimizer,
     T_0=T_0,
@@ -94,7 +92,6 @@ d_scheduler = CosineAnnealingWarmRestarts(
     eta_min=min_lr
 )
 
-# Инициализация или загрузка состояния
 start_epoch = 0
 epoch_d_losses = []
 epoch_g_losses = []
@@ -116,22 +113,22 @@ if checkpoint_path:
     if checkpoint.get('d_scheduler_state_dict'):
         d_scheduler.load_state_dict(checkpoint['d_scheduler_state_dict'])
     
-    start_epoch = checkpoint.get('epoch', 0)  # Добавляем 200 к номеру эпохи из чекпоинта
+    start_epoch = checkpoint.get('epoch', 0)  
     losses = checkpoint.get('losses', {'discriminator': [], 'generator': []})
     epoch_d_losses = losses['discriminator']
     epoch_g_losses = losses['generator']
     print(f"Resuming from epoch {start_epoch}")
     
-    # Продолжаем с следующей эпохи
-    num_epochs = start_epoch + 200  # Добавляем еще 200 эпох к скорректированной эпохе
+    num_epochs = start_epoch + 200  # при завантаженні з чекпойнту корисно для коригування range епох
 
-# CSV для записи потерь
+# CSV для втрат
 csv_path = "results/losses.csv"
 if not checkpoint_path:
     with open(csv_path, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['epoch', 'discriminator_loss', 'generator_loss'])
 
+# градієнтний штраф
 def compute_gradient_penalty(discriminator, real_samples, fake_samples):
     alpha = torch.rand(real_samples.size(0), 1, 1, 1, device=device)
     interpolates = (alpha * real_samples + (1 - alpha) * fake_samples).requires_grad_(True)
@@ -150,13 +147,12 @@ def compute_gradient_penalty(discriminator, real_samples, fake_samples):
     gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
     return gradient_penalty
 
-# Добавляем регуляризацию для генератора
+# L1 регуляризація для генератора для згладжування зображень (зайве)
 def generator_regularization(gen_imgs):
-    # L1 регуляризация для сглаживания изображений
     return torch.mean(torch.abs(gen_imgs[:, :, :, :-1] - gen_imgs[:, :, :, 1:])) + \
            torch.mean(torch.abs(gen_imgs[:, :, :-1, :] - gen_imgs[:, :, 1:, :]))
 
-# Тренировка
+# тренувальний цикл
 for epoch in range(start_epoch, num_epochs):
     batch_d_losses = []
     batch_g_losses = []
@@ -165,7 +161,6 @@ for epoch in range(start_epoch, num_epochs):
         real_imgs = real_imgs.to(device)
         batch_size = real_imgs.size(0)
         
-        # Тренировка дискриминатора
         d_optimizer.zero_grad()
         
         z = torch.randn(batch_size, latent_dim, device=device)
@@ -182,15 +177,13 @@ for epoch in range(start_epoch, num_epochs):
         
         batch_d_losses.append(d_loss.item())
         
-        # Тренировка генератора
         if i % n_critic == 0:
             g_optimizer.zero_grad()
             
             gen_imgs = generator(z)
             fake_validity = discriminator(gen_imgs)
             
-            # Добавляем регуляризацию к лоссу генератора
-            reg_loss = 0.1 * generator_regularization(gen_imgs)  # коэффициент 0.1 можно настраивать
+            reg_loss = 0.1 * generator_regularization(gen_imgs) 
             g_loss = -torch.mean(fake_validity) + reg_loss
             
             g_loss.backward()
@@ -206,39 +199,31 @@ for epoch in range(start_epoch, num_epochs):
                 f"[G loss: {g_loss.item():.4f}]"
             )
     
-    # Вычисляем средние потери за эпоху
     epoch_d_loss = mean(batch_d_losses)
     epoch_g_loss = mean(batch_g_losses)
     
-    # Обновляем learning rates
     if epoch < warmup_epochs:
-        # Во время warmup используем линейный рост
         g_warmup.step()
         d_warmup.step()
     else:
-        # После warmup используем косинусный scheduler
         g_scheduler.step()
         d_scheduler.step()
     
-    # Получаем текущие learning rates
     current_lr_g = g_optimizer.param_groups[0]['lr']
     current_lr_d = d_optimizer.param_groups[0]['lr']
     
-    # Сохраняем потери в списки
     epoch_d_losses.append(epoch_d_loss)
     epoch_g_losses.append(epoch_g_loss)
     
-    # Записываем потери в CSV
     with open(csv_path, 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([epoch, epoch_d_loss, epoch_g_loss])
     
-    # Генерация изображений в конце каждой эпохи
     with torch.no_grad():
         fake = generator(torch.randn(16, latent_dim, device=device))
         save_image(fake, f"results/images/epoch_{epoch}.png", normalize=True, nrow=4)
     
-    # Сохранение чекпоинтов каждые 5 эпох
+    # Кожні 5 епох зберігаємо чекпойнти
     if epoch % 5 == 0:
         checkpoint = {
             'epoch': epoch,
