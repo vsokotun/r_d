@@ -33,7 +33,6 @@ class Generator(nn.Module):
         )
 
     def forward(self, x):
-        # x: batch_size x latent_dim
         x = self.initial(x)
         x = x.view(x.size(0), 512, 3, 4)
         return self.main(x)
